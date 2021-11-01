@@ -1,10 +1,11 @@
 import React from 'react';
-import {Image, StyleSheet, Animated} from 'react-native';
+import {Image, StyleSheet} from 'react-native';
 import { Chess } from 'chess.js'
 import { Vector } from 'react-native-redash'
 import { SIZE } from './Notation'
-import { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { PanGestureHandler } from 'react-native-gesture-handler'
+import Animated from 'react-native-reanimated'
 
 type Player = "b" | "w";
 type Type = "q" | "r" | "n" | "b" | "k" | "p";
@@ -42,10 +43,22 @@ const Piece = ({ id, position }: PieceProps) => {
     position: 'absolute',
     width: SIZE,
     height: SIZE,
-   transform: [{translateX: translateX.value}, {translateY: translateY.value}]
+    transform: [{translateX: translateX.value}, {translateY: translateY.value}]
   }))
+
+  const onGestureEvent = useAnimatedGestureHandler({ 
+    onStart: () => {
+      offsetX.value = translateX.value
+      offsetY.value = translateY.value
+    },
+    onActive: ({translationX, translationY}) => {
+      translateX.value = translationX + offsetX.value
+      translateY.value = translationY + offsetY.value
+    }
+  })
+
   return (
-    <PanGestureHandler>
+    <PanGestureHandler onGestureEvent={onGestureEvent}>
       <Animated.View style={piece}>
         <Image source={PIECES[id]} style={styles.piece} />
       </Animated.View>
