@@ -1,14 +1,13 @@
 /* eslint-disable prefer-destructuring */
-import {Position} from 'chess.js';
+import {Square} from 'chess.js';
 import {Dimensions} from 'react-native';
 import {Vector} from 'react-native-redash';
 
 const {width} = Dimensions.get('window');
 export const SIZE = width / 8;
 
-export const toTranslation = (to: Position) => {
+export const toTranslation = (to: Square) => {
   'worklet';
-  // worklet don't support destructuring yet
   const tokens = to.split('');
   const col = tokens[0];
   const row = tokens[1];
@@ -29,5 +28,5 @@ export const toPosition = ({x, y}: Vector) => {
   'worklet';
   const col = String.fromCharCode(97 + Math.round(x / SIZE));
   const row = `${8 - Math.round(y / SIZE)}`;
-  return `${col}${row}` as Position;
+  return `${col}${row}` as Square;
 };

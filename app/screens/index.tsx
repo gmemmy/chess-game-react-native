@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {View} from 'react-native';
 import {Chess} from 'chess.js';
 import Background from '../components/Background';
@@ -26,18 +26,31 @@ const Game = () => {
     player: 'w',
     board: chess.board(),
   });
+
+  const onTurn = useCallback(
+    () =>
+      setState({
+        player: state.player === 'w' ? 'b' : 'w',
+        board: chess.board(),
+      }),
+    [chess, state.player],
+  );
+
   return (
     <View style={{flex: 1, marginVertical: 250}}>
       <Background />
-      {state.board.map((row, index) =>
-        row.map((square, scndIndex) => {
+      {state.board.map((row, y) =>
+        row.map((square, x) => {
           if (square === null) {
             return null;
           }
           return (
             <Piece
-              key={scndIndex}
-              position={{x: scndIndex * SIZE, y: index * SIZE}}
+              key={`${x}-${y}`}
+              enabled={state.player === square.color}
+              onTurn={onTurn}
+              chess={chess}
+              position={{x: x * SIZE, y: y * SIZE}}
               id={`${square.color}${square.type}` as const}
             />
           );

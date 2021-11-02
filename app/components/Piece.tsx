@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {Image, StyleSheet} from 'react-native';
-import { Chess } from 'chess.js'
+import {ChessInstance, Square} from 'chess.js'
 import { Vector } from 'react-native-redash'
-import { SIZE } from './Notation'
-import { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import { SIZE, toPosition, toTranslation } from './Notation'
+import { runOnJS, useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { PanGestureHandler } from 'react-native-gesture-handler'
 import Animated from 'react-native-reanimated'
 
@@ -29,40 +29,90 @@ export const PIECES: Pieces = {
 interface PieceProps {
   id: Piece;
   position: Vector;
-  chess: Chess;
+  chess: ChessInstance;
   onTurn: () => void;
   enabled: boolean;
 }
 
-const Piece = ({ id, position }: PieceProps) => {
+const Piece = ({ id, position, chess, onTurn, enabled }: PieceProps) => {
+  const isGestureActive = useSharedValue(false)
   const offsetX = useSharedValue(0);
   const offsetY = useSharedValue(0);
   const translateX = useSharedValue(position.x);
   const translateY = useSharedValue(position.y)
   const piece = useAnimatedStyle(() => ({
     position: 'absolute',
+    zIndex: isGestureActive.value ? 100 : 10,
     width: SIZE,
     height: SIZE,
     transform: [{translateX: translateX.value}, {translateY: translateY.value}]
   }))
 
+  const movePiece = useCallback((from: Square, to: Square) => {
+    const move = chess.moves({verbose: true}).find((m) => m.from === from && m.to === to)
+    const {x, y} = toTranslation(move ? to : from)
+    translateX.value = withTiming(x)
+    translateY.value = withTiming(y, {}, () => {
+      isGestureActive.value = false
+    })
+    if (move) {
+      chess.move(move)
+      onTurn()
+    }
+  }, [chess, translateX, translateY, onTurn, isGestureActive])
+
   const onGestureEvent = useAnimatedGestureHandler({ 
     onStart: () => {
+      isGestureActive.value = true
       offsetX.value = translateX.value
       offsetY.value = translateY.value
     },
     onActive: ({translationX, translationY}) => {
       translateX.value = translationX + offsetX.value
       translateY.value = translationY + offsetY.value
+    },
+    onEnd: () => {
+      const from = toPosition({x: offsetX.value, y: offsetY.value})
+      const to = toPosition({x: translateX.value, y: translateY.value})
+      runOnJS(movePiece)(from, to)
     }
   })
 
+  const from = useAnimatedStyle(() => {
+    const position = toTranslation(
+      toPosition({x: translateX.value, y: translateY.value})
+    )
+    return {
+      backgroundColor: 'rgba(255, 255, 0, 0.5)',
+      position: 'absolute',
+      zIndex: isGestureActive.value ? 100 : 10,
+      opacity: isGestureActive.value ? 1 : 0,
+      width: SIZE,
+      height: SIZE,
+      transform: [{translateX: position.x}, {translateY: position.y}]
+    }
+  })
+
+  const to = useAnimatedStyle(() => ({
+    backgroundColor: 'rgba(255, 255, 0, 0.5)',
+    position: 'absolute',
+    zIndex: isGestureActive.value ? 100 : 10,
+    opacity: isGestureActive.value ? 1 : 0,
+    width: SIZE,
+    height: SIZE,
+    transform: [{translateX: offsetX.value}, {translateY: offsetY.value}]
+  }))
+
   return (
-    <PanGestureHandler onGestureEvent={onGestureEvent}>
-      <Animated.View style={piece}>
-        <Image source={PIECES[id]} style={styles.piece} />
-      </Animated.View>
-    </PanGestureHandler>
+    <>
+      <Animated.View style={from} />
+      <Animated.View style={to} />
+      <PanGestureHandler onGestureEvent={onGestureEvent} enabled={enabled}>
+        <Animated.View style={piece}>
+          <Image source={PIECES[id]} style={styles.piece} />
+        </Animated.View>
+      </PanGestureHandler>
+    </>
   )
 };
 
